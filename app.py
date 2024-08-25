@@ -86,15 +86,35 @@ def generate_analysis_report():
         pdf_filename = "analysis_report.pdf"
         doc = SimpleDocTemplate(pdf_filename, pagesize=letter)
         styles = getSampleStyleSheet()
+
+        # Adjust margin settings if needed
+        doc.leftMargin = 72   # 1 inch from the left
+        doc.rightMargin = 72  # 1 inch from the right
+        doc.topMargin = 72    # 1 inch from the top
+        doc.bottomMargin = 72 # 1 inch from the bottom
+
         story = []
 
         title = "Analysis Report"
         story.append(Paragraph(title, styles['Title']))
         story.append(Spacer(1, 12))
 
-        # Use Preformatted style to preserve new lines
-        preformatted_style = ParagraphStyle(name='Preformatted', parent=styles['BodyText'], spaceAfter=12)
-        story.append(Preformatted(response_text, preformatted_style))
+        # ParagraphStyle for normal text wrapping within margins
+        normal_style = ParagraphStyle(
+            name='Normal',
+            parent=styles['BodyText'],
+            spaceAfter=12,
+            alignment=0,  # Left-aligned text
+            allowWidows=1,  # Allow single lines at top of page
+            allowOrphans=1, # Allow single lines at bottom of page
+        )
+
+        # Split the response text into multiple paragraphs if needed
+        paragraphs = response_text.split('\n\n')
+        for paragraph in paragraphs:
+            if paragraph.strip():  # Check if there is any text
+                story.append(Paragraph(paragraph.strip(), normal_style))
+                story.append(Spacer(1, 12))
 
         doc.build(story)
 
