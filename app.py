@@ -7,6 +7,9 @@ import io
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Preformatted
 
 # Initialize the Groq client
 client = Groq(api_key=GROQ_API_KEY)
@@ -89,8 +92,9 @@ def generate_analysis_report():
         story.append(Paragraph(title, styles['Title']))
         story.append(Spacer(1, 12))
 
-        story.append(Paragraph(response_text, styles['BodyText']))
-        story.append(Spacer(1, 12))
+        # Use Preformatted style to preserve new lines
+        preformatted_style = ParagraphStyle(name='Preformatted', parent=styles['BodyText'], spaceAfter=12)
+        story.append(Preformatted(response_text, preformatted_style))
 
         doc.build(story)
 
