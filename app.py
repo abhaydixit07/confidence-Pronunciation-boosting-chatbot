@@ -1,9 +1,12 @@
 import streamlit as st
-from groq import Groq  # Importing the Groq library
+from groq import Groq
 from apikey import GROQ_API_KEY
 import speech_recognition as sr
 import pyttsx3
 import io
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 
 # Initialize the Groq client
 client = Groq(api_key=GROQ_API_KEY)
@@ -40,7 +43,8 @@ def generate_response(user_input):
     # Gather the response text
     response_text = ""
     for chunk in completion:
-        response_text += chunk.choices[0].delta.content or ""
+        if hasattr(chunk, 'choices') and len(chunk.choices) > 0:
+            response_text += chunk.choices[0].delta.content or ""
 
     # Add the response to the conversation history
     st.session_state.conversation_history.append({"role": "assistant", "content": response_text})
@@ -49,7 +53,6 @@ def generate_response(user_input):
 
 def speak_text(text):
     """Convert text to speech and save it to a file."""
-    # Use a fixed filename for the audio response
     audio_filename = st.session_state.audio_file
     engine.save_to_file(text, audio_filename)
     engine.runAndWait()
@@ -57,11 +60,53 @@ def speak_text(text):
         audio_data = audio_file.read()
     return audio_data
 
+def generate_analysis_report():
+    """Generate a brief report on behavior and learning based on the conversation history."""
+    user_responses = [msg['content'] for msg in st.session_state.conversation_history if msg['role'] == 'user']
+    
+    prompt = (
+        "Based on the following conversation, generate a brief report focusing on the user's behavior and learning. "
+        "Identify key themes, concerns, and learning strategies mentioned. Provide a summary of the user's educational needs and any suggestions for improvement.\n\n"
+        "Conversation:\n"
+    )
+    
+    for msg in st.session_state.conversation_history:
+        prompt += f"{msg['role'].capitalize()}: {msg['content']}\n"
+    
+    try:
+        response_text = generate_response(prompt)
+        
+        if not response_text.strip():
+            raise ValueError("The generated response is empty. Check the API response or prompt.")
+
+        # Create a PDF document
+        pdf_filename = "analysis_report.pdf"
+        doc = SimpleDocTemplate(pdf_filename, pagesize=letter)
+        styles = getSampleStyleSheet()
+        story = []
+
+        title = "Analysis Report"
+        story.append(Paragraph(title, styles['Title']))
+        story.append(Spacer(1, 12))
+
+        story.append(Paragraph(response_text, styles['BodyText']))
+        story.append(Spacer(1, 12))
+
+        doc.build(story)
+
+        # Read the PDF file to return as a byte stream
+        with open(pdf_filename, 'rb') as pdf_file:
+            pdf_data = pdf_file.read()
+
+        return pdf_data, pdf_filename
+
+    except Exception as e:
+        st.write(f"Error generating report: {e}")
+        return None, "An error occurred while generating the report."
+
 def main():
-    # Custom CSS for a minimalist background with blue and green dots
     st.markdown("""
         <style>
-        /* White background with blue and green dots */
         body {
             background-color: #fff;
             font-family: Arial, sans-serif;
@@ -71,7 +116,6 @@ def main():
             color: #333;
         }
 
-        /* Chat bubbles styling */
         .chat-bubble {
             padding: 15px;
             border-radius: 20px;
@@ -85,14 +129,12 @@ def main():
             text-align: left;
             color: white;
             box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.15);
-            animation: userBubbleAnimation 0.5s ease;
         }
         .bot-bubble {
             background-color: #f3e5ab;
             text-align: right;
             color: #000;
             box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.15);
-            animation: botBubbleAnimation 0.5s ease;
         }
         .chat-container {
             display: flex;
@@ -103,37 +145,34 @@ def main():
             align-self: flex-end;
         }
 
-        
-
-        /* Modern button styles */
         .stButton>button {
-    background-color: #89D85D;
-    color: black;
-    font-weight: bold;
-    border: none;
-    padding: 12px 28px;
-    text-align: center;
-    font-size: 18px;
-    margin: 6px 2px;
-    cursor: pointer;
-    border-radius: 12px;
-    transition: all 0.3s ease;
-    outline: none;  /* Remove default outline */
-}
+            background-color: #89D85D;
+            color: black;
+            font-weight: bold;
+            border: none;
+            padding: 12px 28px;
+            text-align: center;
+            font-size: 18px;
+            margin: 6px 2px;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
 
-.stButton>button:hover {
-    background-color: #013220;
-    transform: scale(1.05);
-    color: white;
-}
+        .stButton>button:hover {
+            background-color: #013220;
+            transform: scale(1.05);
+            color: white;
+        }
 
-.stButton>button:focus,
-.stButton>button:active {
-    background-color: #89D85D;  /* Ensure the background color remains consistent */
-    color: black;  /* Ensure the font color remains consistent */
-    outline: none;  /* Remove default outline */
-    box-shadow: none;  /* Remove any box shadow */
-}
+        .stButton>button:focus,
+        .stButton>button:active {
+            background-color: #89D85D;
+            color: black;
+            outline: none;
+            box-shadow: none;
+        }
 
         .stAudio {
             margin-top: 20px;
@@ -145,7 +184,11 @@ def main():
 
     st.markdown('<h1 class="centered-title">🤖Voice Chatbot🗣️</h1>', unsafe_allow_html=True)
 
-    # Display the conversation history
+    if len(st.session_state.conversation_history) == 0:
+        introduction = "Hello! I'm Edusync's chatbot. I'm here to help you with your learning journey and make it as enjoyable and effective as possible. How are you feeling today about your studies?"
+        st.session_state.conversation_history.append({"role": "assistant", "content": introduction})
+        st.write(introduction)
+
     st.subheader("Conversation")
     chat_html = '<div class="chat-container">'
     for msg in st.session_state.conversation_history:
@@ -156,10 +199,8 @@ def main():
     chat_html += '</div>'
     st.markdown(chat_html, unsafe_allow_html=True)
 
-    # Audio input from the user
     st.subheader("Speak to the chatbot")
     
-    # Create a placeholder for the status message
     status_placeholder = st.empty()
     
     if st.button("Start Listening"):
@@ -187,27 +228,24 @@ def main():
                 st.session_state.listening = False
                 status_placeholder.empty()  # Clear the status message
 
-    # JavaScript to handle Enter key press for text input
+    if st.button("Generate Analysis Report"):
+        pdf_data, filename = generate_analysis_report()
+        if pdf_data:
+            st.download_button("Download Report", data=pdf_data, file_name=filename, mime="application/pdf")
+
     st.markdown("""
         <script>
         document.addEventListener('DOMContentLoaded', function() {
             const input = document.querySelector('input[type="text"]');
-            const button = document.querySelector('button');
-
-            input.addEventListener('keypress', function(event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();  // Prevent the default form submission
-                    button.click();         // Trigger the button click
+            const button = document.querySelector('button[data-baseweb="button"]');
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    button.click();
                 }
             });
         });
         </script>
     """, unsafe_allow_html=True)
-
-    # Scroll to the latest message
-    st.markdown("<script>window.scrollTo(0, document.body.scrollHeight);</script>", unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)  # Close main chat area
 
 if __name__ == "__main__":
     main()
