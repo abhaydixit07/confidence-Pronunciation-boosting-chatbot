@@ -122,7 +122,8 @@ def main():
         if user_input.strip():  # Ensure the input is not empty
             response = generate_response(user_input.strip())
             st.session_state.user_input = ""  # Clear input after sending
-            st.experimental_rerun()  # Refresh the app to show the new message
+            # Ensure the input box is cleared
+            st.text_area("", "", height=100)
 
 if __name__ == "__main__":
     main()
