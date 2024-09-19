@@ -2,20 +2,16 @@ import streamlit as st
 from groq import Groq
 from apiKey import GROQ_API_KEY
 import speech_recognition as sr
-import pyttsx3
+from gtts import gTTS
 import io
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Preformatted
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+import matplotlib.pyplot as plt
+import base64
 
 # Initialize the Groq client
 client = Groq(api_key=GROQ_API_KEY)
-
-# Initialize the text-to-speech engine
-engine = pyttsx3.init()
 
 # Initialize conversation history and input state in Streamlit session state
 if 'conversation_history' not in st.session_state:
@@ -55,30 +51,12 @@ def generate_response(user_input):
     return response_text
 
 def speak_text(text):
-    """Convert text to speech and save it to a file."""
-    audio_filename = st.session_state.audio_file
-    engine.save_to_file(text, audio_filename)
-    engine.runAndWait()
-    with open(audio_filename, 'rb') as audio_file:
-        audio_data = audio_file.read()
+    """Convert text to speech using gTTS and return it as a byte stream."""
+    tts = gTTS(text)
+    audio_data = io.BytesIO()
+    tts.write_to_fp(audio_data)
+    audio_data.seek(0)  # Reset the stream pointer to the beginning
     return audio_data
-
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.units import inch
-from reportlab.lib.colors import HexColor
-
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, KeepTogether
-from reportlab.lib.units import inch
-from reportlab.lib.colors import HexColor
-
-import matplotlib.pyplot as plt
-import io
-import base64
-from reportlab.platypus import Image
 
 def generate_analysis_report():
     """Generate a brief report on behavior and learning based on the conversation history."""
@@ -107,23 +85,21 @@ def generate_analysis_report():
         styles = getSampleStyleSheet()
 
         # Custom styles for the report
-        title_style = ParagraphStyle(name="TitleStyle", fontSize=28, alignment=1, spaceAfter=20, textColor=HexColor("#2E4053"), fontName="Helvetica-Bold")
-        subtitle_style = ParagraphStyle(name="SubtitleStyle", fontSize=18, alignment=1, spaceAfter=12, textColor=HexColor("#2874A6"), fontName="Helvetica-Oblique")
-        header_style = ParagraphStyle(name="HeaderStyle", fontSize=16, spaceAfter=10, textColor=HexColor("#1F618D"), bold=True)
-        body_style = ParagraphStyle(name="BodyStyle", fontSize=12, spaceAfter=6, textColor=HexColor("#34495E"), leading=15)
+        title_style = ParagraphStyle(name="TitleStyle", fontSize=28, alignment=1, spaceAfter=20)
+        header_style = ParagraphStyle(name="HeaderStyle", fontSize=16, spaceAfter=10, bold=True)
+        body_style = ParagraphStyle(name="BodyStyle", fontSize=12, spaceAfter=6, leading=15)
 
         # Build the story for the PDF
         story = []
 
         # Add the cover page
         story.append(Paragraph("User Learning Analysis Report", title_style))
-        story.append(Paragraph("A comprehensive analysis of user interactions", subtitle_style))
         story.append(Spacer(1, 12))  # Space after the cover page content
         
         # Add the introduction section
         story.append(Paragraph("Introduction", header_style))
         story.append(Paragraph(
-            "This report is based on the user's interaction with the Edusync chatbot. "
+            "This report is based on the user's interaction with the chatbot. "
             "The following sections summarize key themes from the conversation and provide insights into learning behaviors and strategies.", 
             body_style))
         story.append(Spacer(1, 12))
@@ -151,9 +127,6 @@ def generate_analysis_report():
         pie_chart.drawHeight = 400
         story.append(pie_chart)
         
-        # Add more analysis sections and visuals as needed
-        # Example: Adding a graph or flowchart based on the analysis
-        
         # Build and save the document
         doc.build(story)
 
@@ -172,13 +145,11 @@ def main():
         <style>
         body {
             background-color: #fff;
-            font-family: Arial, sans-serif;
         }
         .centered-title {
             text-align: center;
             color: #333;
         }
-
         .chat-bubble {
             padding: 15px;
             border-radius: 20px;
@@ -207,7 +178,6 @@ def main():
         .chat-container .bot-bubble {
             align-self: flex-end;
         }
-
         .stButton>button {
             background-color: #89D85D;
             color: black;
@@ -220,35 +190,16 @@ def main():
             cursor: pointer;
             border-radius: 12px;
             transition: all 0.3s ease;
-            outline: none;
-        }
-
-        .stButton>button:hover {
-            background-color: #013220;
-            transform: scale(1.05);
-            color: white;
-        }
-
-        .stButton>button:focus,
-        .stButton>button:active {
-            background-color: #89D85D;
-            color: black;
-            outline: none;
-            box-shadow: none;
-        }
-
-        .stAudio {
-            margin-top: 20px;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="main-chat-area">', unsafe_allow_html=True)  # Open main chat area with white background
+    st.markdown('<div class="main-chat-area">', unsafe_allow_html=True)
 
     st.markdown('<h1 class="centered-title">🤖Voice Chatbot🗣️</h1>', unsafe_allow_html=True)
 
     if len(st.session_state.conversation_history) == 0:
-        introduction = "Hello! I'm Edusync's chatbot. I'm here to help you with your learning journey and make it as enjoyable and effective as possible. How are you feeling today about your studies?"
+        introduction = "Hello! I'm Edusync's chatbot. I'm here to help you with your learning journey. How are you feeling today about your studies?"
         st.session_state.conversation_history.append({"role": "assistant", "content": introduction})
         st.write(introduction)
 
@@ -283,32 +234,19 @@ def main():
                     st.session_state.listening = False
                     status_placeholder.empty()  # Clear the status message
             except sr.UnknownValueError:
-                st.write("Sorry, I could not understand the audio.")
+                st.write("Sorry, I could not understand your speech. Please try again.")
                 st.session_state.listening = False
-                status_placeholder.empty()  # Clear the status message
-            except sr.RequestError:
-                st.write("Sorry, there was an error with the speech recognition service.")
+            except sr.RequestError as e:
+                st.write(f"Error: {e}")
                 st.session_state.listening = False
-                status_placeholder.empty()  # Clear the status message
 
-    if st.button("Generate Analysis Report"):
-        pdf_data, filename = generate_analysis_report()
+    st.subheader("Analysis Report")
+    if st.button("Generate Report"):
+        pdf_data, pdf_filename = generate_analysis_report()
         if pdf_data:
-            st.download_button("Download Report", data=pdf_data, file_name=filename, mime="application/pdf")
-
-    st.markdown("""
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const input = document.querySelector('input[type="text"]');
-            const button = document.querySelector('button[data-baseweb="button"]');
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    button.click();
-                }
-            });
-        });
-        </script>
-    """, unsafe_allow_html=True)
+            b64_pdf = base64.b64encode(pdf_data).decode()
+            href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="{pdf_filename}">Download your report</a>'
+            st.markdown(href, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
