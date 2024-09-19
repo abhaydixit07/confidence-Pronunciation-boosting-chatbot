@@ -1,11 +1,6 @@
 import streamlit as st
 from groq import Groq
 from apiKey import GROQ_API_KEY
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
-import matplotlib.pyplot as plt
-import base64
 
 # Initialize the Groq client
 client = Groq(api_key=GROQ_API_KEY)
@@ -42,88 +37,6 @@ def generate_response(user_input):
     st.session_state.conversation_history.append({"role": "assistant", "content": response_text})
 
     return response_text
-
-def generate_analysis_report():
-    """Generate a brief report on behavior and learning based on the conversation history."""
-    user_responses = [msg['content'] for msg in st.session_state.conversation_history if msg['role'] == 'user']
-    
-    # Define the report prompt for generating a summary
-    prompt = (
-        "You are a conversation analyser bot. Based on the following conversation, generate a brief report focusing on the user's behavior and learning. "
-        "Identify key themes, concerns, and learning strategies mentioned. Provide a summary of the user's educational needs and any suggestions for improvement. \n\n"
-        "Conversation:\n"
-    )
-    
-    for msg in st.session_state.conversation_history:
-        prompt += f"{msg['role'].capitalize()}: {msg['content']}\n"
-    
-    try:
-        # Generate a response based on the conversation
-        response_text = generate_response(prompt)
-        
-        if not response_text.strip():
-            raise ValueError("The generated response is empty. Check the API response or prompt.")
-        
-        # Create a PDF document
-        pdf_filename = "analysis_report.pdf"
-        doc = SimpleDocTemplate(pdf_filename, pagesize=letter)
-        styles = getSampleStyleSheet()
-
-        # Custom styles for the report
-        title_style = ParagraphStyle(name="TitleStyle", fontSize=28, alignment=1, spaceAfter=20)
-        header_style = ParagraphStyle(name="HeaderStyle", fontSize=16, spaceAfter=10, bold=True)
-        body_style = ParagraphStyle(name="BodyStyle", fontSize=12, spaceAfter=6, leading=15)
-
-        # Build the story for the PDF
-        story = []
-
-        # Add the cover page
-        story.append(Paragraph("User Learning Analysis Report", title_style))
-        story.append(Spacer(1, 12))  # Space after the cover page content
-        
-        # Add the introduction section
-        story.append(Paragraph("Introduction", header_style))
-        story.append(Paragraph(
-            "This report is based on the user's interaction with the chatbot. "
-            "The following sections summarize key themes from the conversation and provide insights into learning behaviors and strategies.", 
-            body_style))
-        story.append(Spacer(1, 12))
-
-        # Add the analysis section
-        story.append(Paragraph("Analysis and Insights", header_style))
-        story.append(Paragraph(response_text, body_style))
-
-        # Generate a sample pie chart
-        labels = ['Key Theme 1', 'Key Theme 2', 'Key Theme 3']
-        sizes = [30, 45, 25]  # Just for illustration; replace with actual data
-        fig, ax = plt.subplots()
-        ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
-        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-
-        # Save the plot to a byte stream
-        pie_image = io.BytesIO()
-        plt.savefig(pie_image, format='png')
-        pie_image.seek(0)
-        
-        # Add the pie chart to the report
-        story.append(Spacer(1, 12))
-        pie_chart = Image(pie_image)
-        pie_chart.drawWidth = 400
-        pie_chart.drawHeight = 400
-        story.append(pie_chart)
-        
-        # Build and save the document
-        doc.build(story)
-
-        # Read the PDF file to return as a byte stream
-        with open(pdf_filename, 'rb') as pdf_file:
-            pdf_data = pdf_file.read()
-
-        return pdf_data, pdf_filename
-
-    except Exception as e:
-        st.write(f"Error generating report: {e}")
-        return None, "An error occurred while generating the report."
 
 def main():
     st.markdown("""
@@ -183,12 +96,14 @@ def main():
 
     st.markdown('<h1 class="centered-title">🤖 Text-based Chatbot</h1>', unsafe_allow_html=True)
 
+    # If conversation history is empty, start with an introductory message
     if len(st.session_state.conversation_history) == 0:
         introduction = "Hello! I'm Edusync's chatbot. I'm here to help you with your learning journey. How are you feeling today about your studies?"
         st.session_state.conversation_history.append({"role": "assistant", "content": introduction})
         st.write(introduction)
 
     st.subheader("Conversation")
+    # Display the conversation history
     chat_html = '<div class="chat-container">'
     for msg in st.session_state.conversation_history:
         if msg['role'] == 'user':
@@ -198,20 +113,16 @@ def main():
     chat_html += '</div>'
     st.markdown(chat_html, unsafe_allow_html=True)
 
+    # Input field for the user to type a message
     st.subheader("Type your message:")
-    st.session_state.user_input = st.text_input("")
+    user_input = st.text_area("", st.session_state.user_input, height=100)
 
-    if st.session_state.user_input:
-        response = generate_response(st.session_state.user_input)
-        st.session_state.user_input = ""  # Clear input after sending
-
-    st.subheader("Analysis Report")
-    if st.button("Generate Report"):
-        pdf_data, pdf_filename = generate_analysis_report()
-        if pdf_data:
-            b64_pdf = base64.b64encode(pdf_data).decode()
-            href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="{pdf_filename}">Download your report</a>'
-            st.markdown(href, unsafe_allow_html=True)
+    # Button to submit the message
+    if st.button("Send"):
+        if user_input.strip():  # Ensure the input is not empty
+            response = generate_response(user_input.strip())
+            st.session_state.user_input = ""  # Clear input after sending
+            st.experimental_rerun()  # Refresh the app to show the new message
 
 if __name__ == "__main__":
     main()
