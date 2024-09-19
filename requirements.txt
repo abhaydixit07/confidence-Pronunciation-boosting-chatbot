@@ -3,3 +3,4 @@ pyttsx3==2.90
 reportlab==4.2.0
 SpeechRecognition==3.10.4
 streamlit==1.37.1
+gTTS==2.5.3
