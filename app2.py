@@ -115,16 +115,15 @@ def main():
 
     # Input field for the user to type a message
     st.subheader("Type your message:")
-    user_input = st.text_area("", st.session_state.user_input, height=100, key="user_input")
+    user_input = st.text_area("", height=100, key="user_input")
 
     # Button to submit the message
     if st.button("Send"):
         if user_input.strip():  # Ensure the input is not empty
             response = generate_response(user_input.strip())
-            st.session_state.user_input = ""  # Clear input after sending
-            # Clear the input field
-            st.session_state['user_input'] = ""
-            st.experimental_rerun()  # Rerun the app to clear the text area
+            # Clear the input field and conversation history
+            st.session_state.user_input = ""  # This line can be omitted if input field is cleared automatically
+            st.experimental_rerun()  # Rerun the app to apply changes
 
 if __name__ == "__main__":
     main()
