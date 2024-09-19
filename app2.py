@@ -1,9 +1,6 @@
 import streamlit as st
 from groq import Groq
 from apiKey import GROQ_API_KEY
-import speech_recognition as sr
-from gtts import gTTS
-import io
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
@@ -18,10 +15,6 @@ if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
 if 'user_input' not in st.session_state:
     st.session_state.user_input = ""
-if 'audio_file' not in st.session_state:
-    st.session_state.audio_file = 'response.mp3'  # Default filename for audio
-if 'listening' not in st.session_state:
-    st.session_state.listening = False  # Track listening state
 
 def generate_response(user_input):
     """Generate a response using Llama 3 and maintain conversation context."""
@@ -50,21 +43,13 @@ def generate_response(user_input):
 
     return response_text
 
-def speak_text(text):
-    """Convert text to speech using gTTS and return it as a byte stream."""
-    tts = gTTS(text)
-    audio_data = io.BytesIO()
-    tts.write_to_fp(audio_data)
-    audio_data.seek(0)  # Reset the stream pointer to the beginning
-    return audio_data
-
 def generate_analysis_report():
     """Generate a brief report on behavior and learning based on the conversation history."""
     user_responses = [msg['content'] for msg in st.session_state.conversation_history if msg['role'] == 'user']
     
     # Define the report prompt for generating a summary
     prompt = (
-        "You are a conversation analyser bot so Based on the following conversation, generate a brief report focusing on the user's behavior and learning. "
+        "You are a conversation analyser bot. Based on the following conversation, generate a brief report focusing on the user's behavior and learning. "
         "Identify key themes, concerns, and learning strategies mentioned. Provide a summary of the user's educational needs and any suggestions for improvement. \n\n"
         "Conversation:\n"
     )
@@ -196,7 +181,7 @@ def main():
 
     st.markdown('<div class="main-chat-area">', unsafe_allow_html=True)
 
-    st.markdown('<h1 class="centered-title">🤖Voice Chatbot🗣️</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="centered-title">🤖 Text-based Chatbot</h1>', unsafe_allow_html=True)
 
     if len(st.session_state.conversation_history) == 0:
         introduction = "Hello! I'm Edusync's chatbot. I'm here to help you with your learning journey. How are you feeling today about your studies?"
@@ -213,32 +198,12 @@ def main():
     chat_html += '</div>'
     st.markdown(chat_html, unsafe_allow_html=True)
 
-    st.subheader("Speak to the chatbot")
-    
-    status_placeholder = st.empty()
-    
-    if st.button("Start Listening"):
-        st.session_state.listening = True
-        status_placeholder.text("Listening...")
-        recognizer = sr.Recognizer()
-        with sr.Microphone() as source:
-            audio = recognizer.listen(source)
-            try:
-                st.session_state.user_input = recognizer.recognize_google(audio)
-                st.write(f"You said: {st.session_state.user_input}")
-                if st.session_state.user_input:
-                    response = generate_response(st.session_state.user_input)
-                    st.session_state.user_input = ""  # Clear input after sending
-                    audio_data = speak_text(response)
-                    st.audio(io.BytesIO(audio_data), format="audio/mp3")
-                    st.session_state.listening = False
-                    status_placeholder.empty()  # Clear the status message
-            except sr.UnknownValueError:
-                st.write("Sorry, I could not understand your speech. Please try again.")
-                st.session_state.listening = False
-            except sr.RequestError as e:
-                st.write(f"Error: {e}")
-                st.session_state.listening = False
+    st.subheader("Type your message:")
+    st.session_state.user_input = st.text_input("")
+
+    if st.session_state.user_input:
+        response = generate_response(st.session_state.user_input)
+        st.session_state.user_input = ""  # Clear input after sending
 
     st.subheader("Analysis Report")
     if st.button("Generate Report"):
