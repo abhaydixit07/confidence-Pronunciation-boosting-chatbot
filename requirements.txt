@@ -8,3 +8,4 @@ matplotlib==3.9.2
 python-dotenv
 seaborn
 pandas
+pyaudio
