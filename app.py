@@ -20,7 +20,7 @@ GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 client = Groq(api_key=GROQ_API_KEY)
 
 # Initialize the text-to-speech engine
-engine = pyttsx3.init()
+engine = pyttsx3.init("dummy")
 
 # Initialize conversation history and input state in Streamlit session state
 if 'conversation_history' not in st.session_state:
