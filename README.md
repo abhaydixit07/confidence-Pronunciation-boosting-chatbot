@@ -95,25 +95,6 @@ An AI-powered chatbot designed to help users improve their pronunciation, build 
 4. **Listen to Feedback:**
    - Use the integrated text-to-speech feature for audio responses.
 
----
-
-## Contributing 🤝
-
-Contributions are welcome! If you'd like to improve the project, please:
-1. Fork the repository.
-2. Create a new branch:
-   ```bash
-   git checkout -b feature-name
-   ```
-3. Commit your changes:
-   ```bash
-   git commit -m "Add feature-name"
-   ```
-4. Push to your branch:
-   ```bash
-   git push origin feature-name
-   ```
-5. Submit a pull request.
 
 ---
 
